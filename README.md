@@ -17,6 +17,12 @@ ODOO_URL=https://your-odoo-instance.odoo.com
 ODOO_DB=your-database-name
 ODOO_USERNAME=your-username
 ODOO_PASSWORD=your-password
+API_KEY=your-secret-api-key  # Clé secrète pour sécuriser l'accès à l'API
+```
+
+Il est recommandé de générer une clé API forte et unique. Vous pouvez utiliser une commande comme celle-ci pour générer une clé aléatoire :
+```bash
+openssl rand -hex 32
 ```
 
 ## Installation
@@ -56,10 +62,15 @@ docker run -d \
   -e ODOO_DB=your-database \
   -e ODOO_USERNAME=your-username \
   -e ODOO_PASSWORD=your-password \
+  -e API_KEY=your-secret-api-key \
   stock-api
 ```
 
 ## Utilisation de l'API
+
+### Authentification
+
+Toutes les requêtes à l'API doivent inclure la clé API dans l'en-tête HTTP `X-API-Key`. Sans cette clé ou avec une clé invalide, l'accès sera refusé avec une erreur 403.
 
 ### Endpoint
 
@@ -70,7 +81,11 @@ docker run -d \
 1. Dans l'URL :
 - `default_code` : Code article du produit dans Odoo
 
-2. Dans le corps de la requête (JSON) :
+2. Dans les en-têtes HTTP :
+- `X-API-Key` : Votre clé API secrète
+- `Content-Type: application/json`
+
+3. Dans le corps de la requête (JSON) :
 ```json
 {
     "target_quantity": 10.0,
@@ -93,6 +108,7 @@ Description des paramètres :
 ```bash
 curl -X POST "http://localhost:9999/stock/VOTRE_CODE_ARTICLE" \
      -H "Content-Type: application/json" \
+     -H "X-API-Key: your-secret-api-key" \
      -d '{
            "target_quantity": 10.0,
            "company_id": 19,
@@ -131,6 +147,14 @@ http://localhost:9999/docs
 4. Effectue un transfert automatique :
    - Si quantité cible > stock actuel : transfert de l'emplacement virtuel vers physique
    - Si quantité cible < stock actuel : transfert de l'emplacement physique vers virtuel
+
+## Sécurité
+
+- L'API est protégée par une authentification via clé API
+- La clé doit être fournie dans l'en-tête HTTP `X-API-Key`
+- Les requêtes sans clé ou avec une clé invalide seront rejetées (erreur 403)
+- Il est recommandé de générer une clé forte et unique
+- La clé API doit être gardée secrète et transmise de manière sécurisée
 
 ## Notes importantes
 

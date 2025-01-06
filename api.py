@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Security, Depends
+from fastapi.security.api_key import APIKeyHeader, APIKey
 import xmlrpc.client
 from typing import Optional
 from pydantic import BaseModel
@@ -17,8 +18,20 @@ db = os.getenv('ODOO_DB')
 username = os.getenv('ODOO_USERNAME')
 password = os.getenv('ODOO_PASSWORD')
 
-if not all([url, db, username, password]):
-    raise ValueError("Toutes les variables d'environnement Odoo doivent être définies")
+# Configuration API Key
+API_KEY = os.getenv('API_KEY')
+if not all([url, db, username, password, API_KEY]):
+    raise ValueError("Toutes les variables d'environnement (Odoo et API_KEY) doivent être définies")
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
+
+async def get_api_key(api_key_header: str = Security(api_key_header)):
+    if api_key_header != API_KEY:
+        raise HTTPException(
+            status_code=403,
+            detail="Clé API invalide"
+        )
+    return api_key_header
 
 # Connexion Odoo
 common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url))
@@ -42,7 +55,11 @@ class StockResponse(BaseModel):
     message: str
 
 @app.post("/stock/{default_code}", response_model=StockResponse)
-async def update_stock(default_code: str, stock_update: StockUpdate):
+async def update_stock(
+    default_code: str,
+    stock_update: StockUpdate,
+    api_key: APIKey = Depends(get_api_key)
+):
     try:
         # 1. Recherche du produit par default_code
         product_variants = models.execute_kw(db, uid, password, 'product.product', 'search_read', 
